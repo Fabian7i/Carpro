@@ -4,11 +4,15 @@ from tkinter import messagebox, ttk
 from database import ConexionBD
 from vistas.base_vista import VistaBase
 from modelos import Repuesto, ServicioCatalogo
+from controladores.controlador_repuesto import ControladorRepuesto
+from controladores.controlador_servicio import ControladorServicio
 
 
 class VistaInventario(VistaBase):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
+        self.controlador_repuesto = ControladorRepuesto()
+        self.controlador_servicio = ControladorServicio()
 
         self.titulo = ctk.CTkLabel(
             self,
@@ -149,24 +153,13 @@ class VistaInventario(VistaBase):
 
     def cargar_repuestos(self):
         self.limpiar_tabla(self.tabla_repuestos)
-        db, conn = self.obtener_conexion_bd()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT codigo_parte, nombre_repuesto, precio_venta, stock_actual FROM repuestos ORDER BY stock_actual ASC;"
-                )
-                for fila in cursor.fetchall():
-                    self.tabla_repuestos.insert(
-                        "",
-                        "end",
-                        values=(fila[0], fila[1], f"S/. {fila[2]:.2f}", fila[3]),
-                    )
-                cursor.close()
-            except Exception as e:
-                print(f"Error al cargar repuestos: {e}")
-            finally:
-                self.cerrar_conexion_bd(db)
+        repuestos = self.controlador_repuesto.obtener_todos()
+        for fila in repuestos:
+            self.tabla_repuestos.insert(
+                "",
+                "end",
+                values=(fila[0], fila[1], f"S/. {fila[2]:.2f}", fila[3]),
+            )
 
     def eliminar_servicio(self):
         item_seleccionado = self.tabla_servicios.selection()
@@ -280,45 +273,23 @@ class VistaInventario(VistaBase):
             messagebox.showwarning("Campos vacíos", mensaje)
             return
 
-        db, conn = self.obtener_conexion_bd()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT INTO repuestos (nombre_repuesto, codigo_parte, precio_venta, stock_actual) VALUES (%s, %s, %s, %s);",
-                    (nombre, codigo, precio, stock),
-                )
-                conn.commit()
-                cursor.close()
-                messagebox.showinfo("Completado", "Repuesto guardado con éxito.")
-                self.txt_rep_nombre.delete(0, "end")
-                self.txt_rep_codigo.delete(0, "end")
-                self.txt_rep_precio.delete(0, "end")
-                self.txt_rep_stock.delete(0, "end")
-                self.cargar_repuestos()
-            except Exception as e:
-                messagebox.showerror("Error", f"No se pudo guardar el repuesto: {e}")
-            finally:
-                self.cerrar_conexion_bd(db)
+        if self.controlador_repuesto.crear(repuesto):
+            messagebox.showinfo("Completado", "Repuesto guardado con éxito.")
+            self.txt_rep_nombre.delete(0, "end")
+            self.txt_rep_codigo.delete(0, "end")
+            self.txt_rep_precio.delete(0, "end")
+            self.txt_rep_stock.delete(0, "end")
+            self.cargar_repuestos()
+        else:
+            messagebox.showerror("Error", "No se pudo guardar el repuesto.")
 
     def cargar_servicios(self):
         self.limpiar_tabla(self.tabla_servicios)
-        db, conn = self.obtener_conexion_bd()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT nombre_servicio, precio_mano_obra FROM servicios_catalogo ORDER BY nombre_servicio ASC;"
-                )
-                for fila in cursor.fetchall():
-                    self.tabla_servicios.insert(
-                        "", "end", values=(fila[0], f"S/. {fila[1]:.2f}")
-                    )
-                cursor.close()
-            except Exception as e:
-                print(f"Error al cargar servicios: {e}")
-            finally:
-                self.cerrar_conexion_bd(db)
+        servicios = self.controlador_servicio.obtener_todos()
+        for fila in servicios:
+            self.tabla_servicios.insert(
+                "", "end", values=(fila[1], f"S/. {fila[3]:.2f}")
+            )
 
     def guardar_servicio(self):
         nombre = self.txt_serv_nombre.get().strip()
@@ -341,23 +312,10 @@ class VistaInventario(VistaBase):
             messagebox.showwarning("Campos vacíos", mensaje)
             return
 
-        db, conn = self.obtener_conexion_bd()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT INTO servicios_catalogo (nombre_servicio, precio_mano_obra) VALUES (%s, %s);",
-                    (nombre, precio),
-                )
-                conn.commit()
-                cursor.close()
-                messagebox.showinfo(
-                    "Completado", "Servicio agregado al tarifario base."
-                )
-                self.txt_serv_nombre.delete(0, "end")
-                self.txt_serv_precio.delete(0, "end")
-                self.cargar_servicios()
-            except Exception as e:
-                messagebox.showerror("Error", f"No se pudo guardar el servicio: {e}")
-            finally:
-                self.cerrar_conexion_bd(db)
+        if self.controlador_servicio.crear(servicio):
+            messagebox.showinfo("Completado", "Servicio agregado al tarifario base.")
+            self.txt_serv_nombre.delete(0, "end")
+            self.txt_serv_precio.delete(0, "end")
+            self.cargar_servicios()
+        else:
+            messagebox.showerror("Error", "No se pudo guardar el servicio.")

@@ -3,11 +3,13 @@ from tkinter import messagebox, ttk
 from database import ConexionBD
 from vistas.base_vista import VistaBase
 from modelos import Cliente
+from controladores.controlador_cliente import ControladorCliente
 
 
 class VistaClientes(VistaBase):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
+        self.controlador = ControladorCliente()
 
         self.titulo = ctk.CTkLabel(
             self, text="Gestión de Clientes", font=ctk.CTkFont(size=22, weight="bold")
@@ -130,20 +132,9 @@ class VistaClientes(VistaBase):
 
     def cargar_clientes(self):
         self.limpiar_tabla(self.tabla)
-        db, conn = self.obtener_conexion_bd()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT id_cliente, ruc, nombre, telefono, correo FROM clientes"
-                )
-                for fila in cursor.fetchall():
-                    self.tabla.insert("", "end", values=fila)
-                cursor.close()
-            except Exception as e:
-                print(f"Error cargando clientes: {e}")
-            finally:
-                self.cerrar_conexion_bd(db)
+        clientes = self.controlador.obtener_todos()
+        for fila in clientes:
+            self.tabla.insert("", "end", values=fila)
 
     def guardar_cliente(self):
         ruc = self.txt_dni_ruc.get().strip()
@@ -159,29 +150,14 @@ class VistaClientes(VistaBase):
             messagebox.showwarning("Campos Incompletos", mensaje)
             return
 
-        db, conn = self.obtener_conexion_bd()
-        if conn is None:
-            messagebox.showerror("Error", "Error al conectar con la base de datos.")
-            return
-
-        try:
-            cursor = conn.cursor()
-            query = """
-                INSERT INTO clientes (ruc, nombre, telefono, correo) 
-                VALUES (%s, %s, %s, %s);
-            """
-            cursor.execute(query, (ruc, nombre, telefono, correo))
-            conn.commit()
+        if self.controlador.crear(cliente):
             messagebox.showinfo(
                 "¡Éxito!", f"Cliente '{nombre}' registrado correctamente."
             )
             self.limpiar_formulario()
             self.cargar_clientes()
-            cursor.close()
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo registrar al cliente:\n{e}")
-        finally:
-            self.cerrar_conexion_bd(db)
+        else:
+            messagebox.showerror("Error", "No se pudo registrar al cliente.")
 
     def limpiar_formulario(self):
         self.txt_dni_ruc.delete(0, "end")

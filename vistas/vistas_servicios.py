@@ -3,11 +3,13 @@ from tkinter import messagebox, ttk
 from database import ConexionBD
 from vistas.base_vista import VistaBase
 from modelos import ServicioCatalogo
+from controladores.controlador_servicio import ControladorServicio
 
 
 class VistaServicios(VistaBase):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
+        self.controlador = ControladorServicio()
 
         # Título
         self.titulo = ctk.CTkLabel(
@@ -116,21 +118,9 @@ class VistaServicios(VistaBase):
     # ==========================================
     def cargar_servicios(self):
         self.limpiar_tabla(self.tabla)
-        db, conn = self.obtener_conexion_bd()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                # Asegúrate de que los nombres de las columnas coincidan con tu BD real
-                cursor.execute(
-                    "SELECT id_servicio, nombre_servicio, rubro, precio_mano_obra FROM servicios_catalogo"
-                )
-                for fila in cursor.fetchall():
-                    self.tabla.insert("", "end", values=fila)
-                cursor.close()
-            except Exception as e:
-                print(f"Error al cargar servicios: {e}")
-            finally:
-                self.cerrar_conexion_bd(db)
+        servicios = self.controlador.obtener_todos()
+        for fila in servicios:
+            self.tabla.insert("", "end", values=fila)
 
     def guardar_servicio(self):
         nombre = self.txt_nombre.get().strip()
@@ -153,24 +143,12 @@ class VistaServicios(VistaBase):
             messagebox.showwarning("Faltan datos", mensaje)
             return
 
-        db, conn = self.obtener_conexion_bd()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                # Ajusta la consulta si tus columnas se llaman distinto en MySQL
-                cursor.execute(
-                    "INSERT INTO servicios_catalogo (nombre_servicio, rubro, precio_mano_obra) VALUES (%s, %s, %s)",
-                    (nombre, rubro, costo),
-                )
-                conn.commit()
-                cursor.close()
-                messagebox.showinfo("Éxito", "Servicio guardado correctamente.")
-                self.limpiar_formulario()
-                self.cargar_servicios()
-            except Exception as e:
-                messagebox.showerror("Error BD", f"Error: {e}")
-            finally:
-                self.cerrar_conexion_bd(db)
+        if self.controlador.crear(servicio):
+            messagebox.showinfo("Éxito", "Servicio guardado correctamente.")
+            self.limpiar_formulario()
+            self.cargar_servicios()
+        else:
+            messagebox.showerror("Error BD", "Error al guardar servicio.")
 
     def eliminar_servicio(self):
         seleccion = self.tabla.selection()
@@ -183,21 +161,10 @@ class VistaServicios(VistaBase):
         if messagebox.askyesno("Confirmar", "¿Eliminar este servicio del catálogo?"):
             id_servicio = self.tabla.item(seleccion, "values")[0]
 
-            db, conn = self.obtener_conexion_bd()
-            if conn:
-                try:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        "DELETE FROM servicios_catalogo WHERE id_servicio = %s",
-                        (id_servicio,),
-                    )
-                    conn.commit()
-                    cursor.close()
-                    self.cargar_servicios()
-                except Exception as e:
-                    messagebox.showerror("Error", f"No se pudo eliminar: {e}")
-                finally:
-                    self.cerrar_conexion_bd(db)
+            if self.controlador.eliminar(id_servicio):
+                self.cargar_servicios()
+            else:
+                messagebox.showerror("Error", "No se pudo eliminar el servicio.")
 
     def limpiar_formulario(self):
         self.txt_nombre.delete(0, "end")

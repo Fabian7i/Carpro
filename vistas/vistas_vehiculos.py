@@ -4,11 +4,15 @@ from tkinter import messagebox, ttk
 from database import ConexionBD
 from vistas.base_vista import VistaBase
 from modelos import Vehiculo
+from controladores.controlador_vehiculo import ControladorVehiculo
+from controladores.controlador_cliente import ControladorCliente
 
 
 class VistaVehiculos(VistaBase):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
+        self.controlador_vehiculo = ControladorVehiculo()
+        self.controlador_cliente = ControladorCliente()
 
         self.titulo = ctk.CTkLabel(
             self, text="Registro de Vehículos", font=ctk.CTkFont(size=22, weight="bold")
@@ -117,64 +121,31 @@ class VistaVehiculos(VistaBase):
 
     def cargar_clientes_combobox(self):
         """Busca los clientes en Render y los carga en el CTkOptionMenu"""
-        db, conn = self.obtener_conexion_bd()
-        if conn is None:
-            return
+        filas = self.controlador_cliente.obtener_para_combobox()
 
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT id_cliente, ruc, nombre FROM clientes ORDER BY nombre ASC;"
-            )
-            filas = cursor.fetchall()
+        opciones = []
+        self.clientes_map.clear()
 
-            opciones = []
-            self.clientes_map.clear()
+        for fila in filas:
+            id_cli, ruc, nombre = fila
+            # Formateamos usando la variable ruc en lugar de dni
+            label = f"{ruc} - {nombre}"
+            opciones.append(label)
+            self.clientes_map[label] = id_cli
 
-            for fila in filas:
-                id_cli, ruc, nombre = fila
-                # Formateamos usando la variable ruc en lugar de dni
-                label = f"{ruc} - {nombre}"
-                opciones.append(label)
-                self.clientes_map[label] = id_cli
-
-            if opciones:
-                self.cmb_cliente.configure(values=opciones)
-                self.cmb_cliente.set(opciones[0])
-            else:
-                self.cmb_cliente.configure(values=["No hay clientes registrados"])
-                self.cmb_cliente.set("No hay clientes registrados")
-
-            cursor.close()
-        except Exception as e:
-            print(f"Error cargando combo de clientes: {e}")
-        finally:
-            self.cerrar_conexion_bd(db)
+        if opciones:
+            self.cmb_cliente.configure(values=opciones)
+            self.cmb_cliente.set(opciones[0])
+        else:
+            self.cmb_cliente.configure(values=["No hay clientes registrados"])
+            self.cmb_cliente.set("No hay clientes registrados")
 
     def cargar_vehiculos(self):
         """Carga la lista de vehículos cruzando el nombre del dueño desde 'clientes'"""
         self.limpiar_tabla(self.tabla)
-        db, conn = self.obtener_conexion_bd()
-        if conn is None:
-            return
-
-        try:
-            cursor = conn.cursor()
-            # Hacemos un INNER JOIN para traer el nombre del cliente propietario
-            query = """
-                SELECT v.placa, v.marca, v.modelo, v.anio, v.kilometraje, c.nombre 
-                FROM vehiculos v
-                INNER JOIN clientes c ON v.id_cliente = c.id_cliente
-                ORDER BY v.id_vehiculo DESC;
-            """
-            cursor.execute(query)
-            for fila in cursor.fetchall():
-                self.tabla.insert("", "end", values=fila)
-            cursor.close()
-        except Exception as e:
-            print(f"Error cargando vehículos: {e}")
-        finally:
-            self.cerrar_conexion_bd(db)
+        vehiculos = self.controlador_vehiculo.obtener_todos_con_cliente()
+        for fila in vehiculos:
+            self.tabla.insert("", "end", values=fila)
 
     def guardar_vehiculo(self):
         cliente_seleccionado = self.cmb_cliente.get()
@@ -214,33 +185,15 @@ class VistaVehiculos(VistaBase):
             messagebox.showwarning("Campos Incompletos", mensaje)
             return
 
-        db, conn = self.obtener_conexion_bd()
-        if conn is None:
-            messagebox.showerror("Error", "Error al conectar con Supabase.")
-            return
-
-        try:
-            cursor = conn.cursor()
-            query = """
-                INSERT INTO vehiculos (id_cliente, placa, marca, modelo, anio, kilometraje) 
-                VALUES (%s, %s, %s, %s, %s, %s);
-            """
-            cursor.execute(
-                query, (id_cliente, placa, marca, modelo, int(anio), kilometraje)
-            )
-            conn.commit()
-
+        if self.controlador_vehiculo.crear(vehiculo):
             messagebox.showinfo(
                 "¡Éxito!",
                 f"Vehículo con placa {placa} guardado y asignado correctamente.",
             )
             self.limpiar_formulario()
             self.cargar_vehiculos()
-            cursor.close()
-        except Exception as e:
-            messagebox.showerror("Error", f"Fallo al guardar vehículo:\n{e}")
-        finally:
-            self.cerrar_conexion_bd(db)
+        else:
+            messagebox.showerror("Error", "Fallo al guardar vehículo.")
 
     def limpiar_formulario(self):
         self.txt_placa.delete(0, "end")

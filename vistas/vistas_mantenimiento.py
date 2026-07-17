@@ -4,11 +4,15 @@ from tkinter import messagebox, ttk
 from database import ConexionBD
 from vistas.base_vista import VistaBase
 from modelos import OrdenTrabajo
+from controladores.controlador_orden import ControladorOrden
+from controladores.controlador_vehiculo import ControladorVehiculo
 
 
 class VistaMantenimiento(VistaBase):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
+        self.controlador_orden = ControladorOrden()
+        self.controlador_vehiculo = ControladorVehiculo()
 
         self.titulo = ctk.CTkLabel(
             self,
@@ -617,66 +621,33 @@ class VistaMantenimiento(VistaBase):
         # ... (Tu lógica de llenado de tablas aquí) ...
 
     def cargar_vehiculos_combobox(self):
-        db, conn = self.obtener_conexion_bd()
-        if conn is None:
-            return
+        filas = self.controlador_vehiculo.obtener_para_combobox()
 
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT id_vehiculo, placa, marca, modelo FROM vehiculos ORDER BY placa ASC;"
-            )
-            filas = cursor.fetchall()
+        opciones = []
+        self.vehiculos_map.clear()
 
-            opciones = []
-            self.vehiculos_map.clear()
+        for fila in filas:
+            id_veh, placa, marca, modelo = fila
+            label = f"{placa} ({marca} {modelo})"
+            opciones.append(label)
+            self.vehiculos_map[label] = id_veh
 
-            for fila in filas:
-                id_veh, placa, marca, modelo = fila
-                label = f"{placa} ({marca} {modelo})"
-                opciones.append(label)
-                self.vehiculos_map[label] = id_veh
-
-            if opciones:
-                self.cmb_vehiculo.configure(values=opciones)
-                self.cmb_vehiculo.set(opciones[0])
-            else:
-                self.cmb_vehiculo.configure(values=["No hay vehículos registrados"])
-                self.cmb_vehiculo.set("No hay vehículos registrados")
-
-            cursor.close()
-        except Exception as e:
-            print(f"Error cargando combobox de vehículos: {e}")
-        finally:
-            self.cerrar_conexion_bd(db)
+        if opciones:
+            self.cmb_vehiculo.configure(values=opciones)
+            self.cmb_vehiculo.set(opciones[0])
+        else:
+            self.cmb_vehiculo.configure(values=["No hay vehículos registrados"])
+            self.cmb_vehiculo.set("No hay vehículos registrados")
 
     def cargar_ordenes(self):
         self.limpiar_tabla(self.tabla)
-        db, conn = self.obtener_conexion_bd()
-        if conn is None:
-            return
-
-        try:
-            cursor = conn.cursor()
-            query = """
-                SELECT o.id_orden, v.placa, o.diagnostico_inicial, o.total_pagar, o.estado, 
-                       TO_CHAR(o.fecha_ingreso, 'DD-MM-YYYY HH24:MI') as fecha
-                FROM ordenes_trabajo o
-                INNER JOIN vehiculos v ON o.id_vehiculo = v.id_vehiculo
-                ORDER BY o.id_orden DESC;
-            """
-            cursor.execute(query)
-            for fila in cursor.fetchall():
-                # Formatear el total para mostrarlo como moneda local
-                id_o, placa, diag, total, est, fec = fila
-                self.tabla.insert(
-                    "", "end", values=(id_o, placa, diag, f"S/. {total:.2f}", est, fec)
-                )
-            cursor.close()
-        except Exception as e:
-            print(f"Error cargando órdenes: {e}")
-        finally:
-            self.cerrar_conexion_bd(db)
+        ordenes = self.controlador_orden.obtener_todos()
+        for fila in ordenes:
+            # Formatear el total para mostrarlo como moneda local
+            id_o, placa, diag, total, est, fec = fila
+            self.tabla.insert(
+                "", "end", values=(id_o, placa, diag, f"S/. {total:.2f}", est, fec)
+            )
 
     def guardar_orden(self):
         vehiculo_seleccionado = self.cmb_vehiculo.get()
@@ -708,32 +679,15 @@ class VistaMantenimiento(VistaBase):
             messagebox.showwarning("Campos Incompletos", mensaje)
             return
 
-        db, conn = self.obtener_conexion_bd()
-        if conn is None:
-            messagebox.showerror("Error", "Error al conectar con la base de datos.")
-            return
-
-        try:
-            cursor = conn.cursor()
-            # El total_pagar inicia en 0.00 y se irá calculando dinámicamente con los servicios/repuestos
-            query = """
-                INSERT INTO ordenes_trabajo (id_vehiculo, id_usuario, diagnostico_inicial, total_pagar, estado) 
-                VALUES (%s, %s, %s, %s, %s);
-            """
-            cursor.execute(query, (id_vehiculo, 1, diagnostico, 0.00, estado))
-            conn.commit()
-
+        if self.controlador_orden.crear(orden):
             messagebox.showinfo(
                 "¡Éxito!",
                 "Orden de trabajo inicial creada. Ahora puedes agregarle servicios y repuestos.",
             )
             self.txt_diagnostico.delete(0, "end")
             self.cargar_ordenes()
-            cursor.close()
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo crear la orden:\n{e}")
-        finally:
-            self.cerrar_conexion_bd(db)
+        else:
+            messagebox.showerror("Error", "No se pudo crear la orden.")
 
     # ---- OBTENER SELECCIÓN ACTIVA DE LA TABLA ----
     def obtener_orden_seleccionada(self):
