@@ -1,31 +1,13 @@
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 from database import ConexionBD
+from vistas.base_vista import VistaBase
+from modelos import Cliente
 
 
-def aplicar_estilo_tabla():
-    style = ttk.Style()
-    style.theme_use("default")
-    style.configure(
-        "Treeview",
-        background="#2b2b2b",
-        foreground="white",
-        rowheight=25,
-        fieldbackground="#2b2b2b",
-        bordercolor="#343b47",
-        borderwidth=0,
-    )
-    style.map("Treeview", background=[("selected", "#1f538d")])
-    style.configure(
-        "Treeview.Heading", background="#1f1f1f", foreground="white", relief="flat"
-    )
-    style.map("Treeview.Heading", background=[("active", "#2b2b2b")])
-
-
-class VistaClientes(ctk.CTkFrame):
+class VistaClientes(VistaBase):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
-        aplicar_estilo_tabla()
 
         self.titulo = ctk.CTkLabel(
             self, text="Gestión de Clientes", font=ctk.CTkFont(size=22, weight="bold")
@@ -147,10 +129,8 @@ class VistaClientes(ctk.CTkFrame):
         )
 
     def cargar_clientes(self):
-        for i in self.tabla.get_children():
-            self.tabla.delete(i)
-        db = ConexionBD()
-        conn = db.conectar()
+        self.limpiar_tabla(self.tabla)
+        db, conn = self.obtener_conexion_bd()
         if conn:
             try:
                 cursor = conn.cursor()
@@ -163,7 +143,7 @@ class VistaClientes(ctk.CTkFrame):
             except Exception as e:
                 print(f"Error cargando clientes: {e}")
             finally:
-                db.desconectar()
+                self.cerrar_conexion_bd(db)
 
     def guardar_cliente(self):
         ruc = self.txt_dni_ruc.get().strip()
@@ -171,15 +151,15 @@ class VistaClientes(ctk.CTkFrame):
         telefono = self.txt_telefono.get().strip()
         correo = self.txt_correo.get().strip()
 
-        if not ruc or not nombre or not telefono:
-            messagebox.showwarning(
-                "Campos Incompletos",
-                "Por favor, ingresa al menos el RUC, Nombre y Teléfono.",
-            )
+        # Usamos el modelo Cliente para validación
+        cliente = Cliente(ruc=ruc, nombre=nombre, telefono=telefono, correo=correo)
+        valido, mensaje = cliente.validar()
+
+        if not valido:
+            messagebox.showwarning("Campos Incompletos", mensaje)
             return
 
-        db = ConexionBD()
-        conn = db.conectar()
+        db, conn = self.obtener_conexion_bd()
         if conn is None:
             messagebox.showerror("Error", "Error al conectar con la base de datos.")
             return
@@ -201,7 +181,7 @@ class VistaClientes(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo registrar al cliente:\n{e}")
         finally:
-            db.desconectar()
+            self.cerrar_conexion_bd(db)
 
     def limpiar_formulario(self):
         self.txt_dni_ruc.delete(0, "end")

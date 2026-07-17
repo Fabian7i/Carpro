@@ -2,13 +2,13 @@
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 from database import ConexionBD
-from vistas.vistasClientes import aplicar_estilo_tabla
+from vistas.base_vista import VistaBase
+from modelos import Repuesto, ServicioCatalogo
 
 
-class VistaInventario(ctk.CTkFrame):
+class VistaInventario(VistaBase):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
-        aplicar_estilo_tabla()
 
         self.titulo = ctk.CTkLabel(
             self,
@@ -148,10 +148,8 @@ class VistaInventario(ctk.CTkFrame):
         self.cargar_servicios()
 
     def cargar_repuestos(self):
-        for i in self.tabla_repuestos.get_children():
-            self.tabla_repuestos.delete(i)
-        db = ConexionBD()
-        conn = db.conectar()
+        self.limpiar_tabla(self.tabla_repuestos)
+        db, conn = self.obtener_conexion_bd()
         if conn:
             try:
                 cursor = conn.cursor()
@@ -168,34 +166,41 @@ class VistaInventario(ctk.CTkFrame):
             except Exception as e:
                 print(f"Error al cargar repuestos: {e}")
             finally:
-                db.desconectar()
-                
+                self.cerrar_conexion_bd(db)
+
     def eliminar_servicio(self):
         item_seleccionado = self.tabla_servicios.selection()
         if not item_seleccionado:
-            messagebox.showwarning("Selección", "Selecciona un servicio de la tabla para eliminar.")
+            messagebox.showwarning(
+                "Selección", "Selecciona un servicio de la tabla para eliminar."
+            )
             return
 
         if messagebox.askyesno("Confirmar", "¿Estás seguro de eliminar este servicio?"):
             valores = self.tabla_servicios.item(item_seleccionado, "values")
             nombre_servicio = valores[0]
-            
+
             db = ConexionBD()
             conn = db.conectar()
             if conn:
                 cursor = conn.cursor()
-                cursor.execute("DELETE FROM servicios_catalogo WHERE nombre_servicio = %s;", (nombre_servicio,))
+                cursor.execute(
+                    "DELETE FROM servicios_catalogo WHERE nombre_servicio = %s;",
+                    (nombre_servicio,),
+                )
                 conn.commit()
                 cursor.close()
                 db.desconectar()
                 self.cargar_servicios()
-                
+
     def guardar_servicio(self):
         nombre = self.txt_serv_nombre.get().strip()
         precio_txt = self.txt_serv_precio.get().strip()
 
         if not nombre or not precio_txt:
-            messagebox.showwarning("Campos vacíos", "Por favor completa todos los datos del servicio.")
+            messagebox.showwarning(
+                "Campos vacíos", "Por favor completa todos los datos del servicio."
+            )
             return
 
         try:
@@ -212,21 +217,21 @@ class VistaInventario(ctk.CTkFrame):
                 # Insertamos en la tabla de servicios
                 cursor.execute(
                     "INSERT INTO servicios_catalogo (nombre_servicio, precio_mano_obra) VALUES (%s, %s);",
-                    (nombre, precio)
+                    (nombre, precio),
                 )
                 conn.commit()
                 cursor.close()
                 messagebox.showinfo("Éxito", "Servicio registrado en el catálogo.")
-                
+
                 # Limpiar y refrescar
-                self.txt_serv_nombre.delete(0, 'end')
-                self.txt_serv_precio.delete(0, 'end')
+                self.txt_serv_nombre.delete(0, "end")
+                self.txt_serv_precio.delete(0, "end")
                 self.cargar_servicios()
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo guardar: {e}")
             finally:
                 db.desonectar()
-                           
+
     def obtener_servicios_catalogo(self):
         servicios = []
         db = ConexionBD()
@@ -252,12 +257,6 @@ class VistaInventario(ctk.CTkFrame):
         precio_txt = self.txt_rep_precio.get().strip()
         stock_txt = self.txt_rep_stock.get().strip()
 
-        if not nombre or not codigo or not precio_txt or not stock_txt:
-            messagebox.showwarning(
-                "Campos vacíos", "Por favor completa todos los datos del repuesto."
-            )
-            return
-
         try:
             precio = float(precio_txt)
             stock = int(stock_txt)
@@ -268,8 +267,20 @@ class VistaInventario(ctk.CTkFrame):
             )
             return
 
-        db = ConexionBD()
-        conn = db.conectar()
+        # Usamos el modelo Repuesto para validación
+        repuesto = Repuesto(
+            nombre_repuesto=nombre,
+            codigo_parte=codigo,
+            precio_venta=precio,
+            stock_actual=stock,
+        )
+        valido, mensaje = repuesto.validar()
+
+        if not valido:
+            messagebox.showwarning("Campos vacíos", mensaje)
+            return
+
+        db, conn = self.obtener_conexion_bd()
         if conn:
             try:
                 cursor = conn.cursor()
@@ -288,13 +299,11 @@ class VistaInventario(ctk.CTkFrame):
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo guardar el repuesto: {e}")
             finally:
-                db.desconectar()
+                self.cerrar_conexion_bd(db)
 
     def cargar_servicios(self):
-        for i in self.tabla_servicios.get_children():
-            self.tabla_servicios.delete(i)
-        db = ConexionBD()
-        conn = db.conectar()
+        self.limpiar_tabla(self.tabla_servicios)
+        db, conn = self.obtener_conexion_bd()
         if conn:
             try:
                 cursor = conn.cursor()
@@ -309,17 +318,11 @@ class VistaInventario(ctk.CTkFrame):
             except Exception as e:
                 print(f"Error al cargar servicios: {e}")
             finally:
-                db.desconectar()
+                self.cerrar_conexion_bd(db)
 
     def guardar_servicio(self):
         nombre = self.txt_serv_nombre.get().strip()
         precio_txt = self.txt_serv_precio.get().strip()
-
-        if not nombre or not precio_txt:
-            messagebox.showwarning(
-                "Campos vacíos", "Por favor completa todos los datos del servicio."
-            )
-            return
 
         try:
             precio = float(precio_txt)
@@ -330,8 +333,15 @@ class VistaInventario(ctk.CTkFrame):
             )
             return
 
-        db = ConexionBD()
-        conn = db.conectar()
+        # Usamos el modelo ServicioCatalogo para validación
+        servicio = ServicioCatalogo(nombre_servicio=nombre, precio_mano_obra=precio)
+        valido, mensaje = servicio.validar()
+
+        if not valido:
+            messagebox.showwarning("Campos vacíos", mensaje)
+            return
+
+        db, conn = self.obtener_conexion_bd()
         if conn:
             try:
                 cursor = conn.cursor()
@@ -350,4 +360,4 @@ class VistaInventario(ctk.CTkFrame):
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo guardar el servicio: {e}")
             finally:
-                db.desconectar()
+                self.cerrar_conexion_bd(db)

@@ -2,13 +2,13 @@
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 from database import ConexionBD
-from vistas.vistasClientes import aplicar_estilo_tabla
+from vistas.base_vista import VistaBase
+from modelos import OrdenTrabajo
 
 
-class VistaMantenimiento(ctk.CTkFrame):
+class VistaMantenimiento(VistaBase):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
-        aplicar_estilo_tabla()
 
         self.titulo = ctk.CTkLabel(
             self,
@@ -142,13 +142,12 @@ class VistaMantenimiento(ctk.CTkFrame):
         self.cargar_vehiculos_combobox()
         self.cargar_ordenes()
 
-   
     def abrir_ventana_detalle(self):
         seleccion = self.tabla.selection()
         if not seleccion:
             messagebox.showwarning("Atención", "Selecciona una orden de la lista.")
             return
-        
+
         id_orden = self.tabla.item(seleccion[0])["values"][0]
 
         ventana = ctk.CTkToplevel(self)
@@ -160,10 +159,14 @@ class VistaMantenimiento(ctk.CTkFrame):
         conn = db.conectar()
         if conn:
             cursor = conn.cursor()
-            
+
             # --- TABLA SERVICIOS (Usando nombres exactos de tus entidades) ---
-            ctk.CTkLabel(ventana, text="Servicios Realizados:", font=("Arial", 14, "bold")).pack(anchor="w", padx=25, pady=(15, 5))
-            tabla_serv = ttk.Treeview(ventana, columns=("Servicio", "Obs", "Costo"), show="headings", height=5)
+            ctk.CTkLabel(
+                ventana, text="Servicios Realizados:", font=("Arial", 14, "bold")
+            ).pack(anchor="w", padx=25, pady=(15, 5))
+            tabla_serv = ttk.Treeview(
+                ventana, columns=("Servicio", "Obs", "Costo"), show="headings", height=5
+            )
             tabla_serv.heading("Servicio", text="Servicio")
             tabla_serv.heading("Obs", text="Observaciones")
             tabla_serv.heading("Costo", text="Costo")
@@ -171,20 +174,29 @@ class VistaMantenimiento(ctk.CTkFrame):
             tabla_serv.pack(fill="x", padx=20)
 
             # Consulta ajustada a: id_servicio_cat, observaciones_tecnicas y precio_mano_obra
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT s.nombre_servicio, d.observaciones_tecnicas, s.precio_mano_obra 
                 FROM detalle_servicios d 
                 JOIN servicios_catalogo s ON d.id_servicio_cat = s.id_servicio_cat 
                 WHERE d.id_orden = %s
-            """, (id_orden,))
-            
-            for row in cursor.fetchall(): 
+            """,
+                (id_orden,),
+            )
+
+            for row in cursor.fetchall():
                 # row[0]: nombre, row[1]: observaciones_tecnicas, row[2]: precio_mano_obra
-                tabla_serv.insert("", "end", values=(row[0], row[1], f"S/. {float(row[2]):.2f}"))
+                tabla_serv.insert(
+                    "", "end", values=(row[0], row[1], f"S/. {float(row[2]):.2f}")
+                )
 
             # --- TABLA REPUESTOS ---
-            ctk.CTkLabel(ventana, text="Repuestos Utilizados:", font=("Arial", 14, "bold")).pack(anchor="w", padx=25, pady=(15, 5))
-            tabla_rep = ttk.Treeview(ventana, columns=("Rep", "Cant", "Precio"), show="headings", height=5)
+            ctk.CTkLabel(
+                ventana, text="Repuestos Utilizados:", font=("Arial", 14, "bold")
+            ).pack(anchor="w", padx=25, pady=(15, 5))
+            tabla_rep = ttk.Treeview(
+                ventana, columns=("Rep", "Cant", "Precio"), show="headings", height=5
+            )
             tabla_rep.heading("Rep", text="Repuesto")
             tabla_rep.heading("Cant", text="Cantidad")
             tabla_rep.heading("Precio", text="Precio Unit.")
@@ -192,27 +204,31 @@ class VistaMantenimiento(ctk.CTkFrame):
             tabla_rep.pack(fill="x", padx=20)
 
             # Consulta ajustada a: id_repuesto y precio_unitario_aplicado
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT r.nombre_repuesto, d.cantidad_usada, d.precio_unitario_aplicado 
                 FROM detalle_repuestos d 
                 JOIN repuestos r ON d.id_repuesto = r.id_repuesto 
                 WHERE d.id_orden = %s
-            """, (id_orden,))
-            for row in cursor.fetchall(): 
-                tabla_rep.insert("", "end", values=(row[0], row[1], f"S/. {float(row[2]):.2f}"))
+            """,
+                (id_orden,),
+            )
+            for row in cursor.fetchall():
+                tabla_rep.insert(
+                    "", "end", values=(row[0], row[1], f"S/. {float(row[2]):.2f}")
+                )
 
             cursor.close()
             db.desconectar()
 
         ctk.CTkButton(ventana, text="Cerrar", command=ventana.destroy).pack(pady=20)
-   
-   
+
         # 1. Obtener la orden seleccionada
         seleccion = self.tabla.selection()
         if not seleccion:
             messagebox.showwarning("Atención", "Selecciona una orden de la lista.")
             return
-        
+
         id_orden = self.tabla.item(seleccion[0])["values"][0]
 
         # 2. Configuración de la ventana
@@ -225,13 +241,17 @@ class VistaMantenimiento(ctk.CTkFrame):
         conn = db.conectar()
         if conn:
             cursor = conn.cursor()
-            
+
             # --- CABECERA ---
             # (Mantén aquí tu lógica de consulta de datos del cliente)
-            
+
             # --- TABLA SERVICIOS (CORREGIDA CON SUS CAMPOS REALES) ---
-            ctk.CTkLabel(ventana, text="Servicios Realizados:", font=("Arial", 14, "bold")).pack(anchor="w", padx=25, pady=(15, 5))
-            tabla_serv = ttk.Treeview(ventana, columns=("Servicio", "Obs", "Costo"), show="headings", height=5)
+            ctk.CTkLabel(
+                ventana, text="Servicios Realizados:", font=("Arial", 14, "bold")
+            ).pack(anchor="w", padx=25, pady=(15, 5))
+            tabla_serv = ttk.Treeview(
+                ventana, columns=("Servicio", "Obs", "Costo"), show="headings", height=5
+            )
             tabla_serv.heading("Servicio", text="Servicio")
             tabla_serv.heading("Obs", text="Observaciones")
             tabla_serv.heading("Costo", text="Costo")
@@ -239,47 +259,57 @@ class VistaMantenimiento(ctk.CTkFrame):
             tabla_serv.pack(fill="x", padx=20)
 
             # Consulta usando los nombres de tu DDL: precio_mano_obra y observaciones
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT s.nombre_servicio, d.observaciones, s.precio_mano_obra 
                 FROM detalle_servicios d 
                 JOIN servicios_catalogo s ON d.id_servicio_cat = s.id_servicio 
                 WHERE d.id_orden = %s
-            """, (id_orden,))
-            
-            for row in cursor.fetchall(): 
+            """,
+                (id_orden,),
+            )
+
+            for row in cursor.fetchall():
                 # row[2] es el precio_mano_obra
-                tabla_serv.insert("", "end", values=(row[0], row[1], f"S/. {float(row[2]):.2f}"))
+                tabla_serv.insert(
+                    "", "end", values=(row[0], row[1], f"S/. {float(row[2]):.2f}")
+                )
 
             # --- TABLA REPUESTOS ---
             # (Asegúrate de que los campos en tu tabla repuestos coincidan)
-            ctk.CTkLabel(ventana, text="Repuestos Utilizados:", font=("Arial", 14, "bold")).pack(anchor="w", padx=25, pady=(15, 5))
-            tabla_rep = ttk.Treeview(ventana, columns=("Rep", "Cant"), show="headings", height=5)
+            ctk.CTkLabel(
+                ventana, text="Repuestos Utilizados:", font=("Arial", 14, "bold")
+            ).pack(anchor="w", padx=25, pady=(15, 5))
+            tabla_rep = ttk.Treeview(
+                ventana, columns=("Rep", "Cant"), show="headings", height=5
+            )
             tabla_rep.heading("Rep", text="Repuesto")
             tabla_rep.heading("Cant", text="Cantidad")
             tabla_rep.column("Cant", width=80, anchor="center")
             tabla_rep.pack(fill="x", padx=20)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT r.nombre_repuesto, d.cantidad_usada 
                 FROM detalle_repuestos d 
                 JOIN repuestos r ON d.id_repuesto = r.id_repuesto 
                 WHERE d.id_orden = %s
-            """, (id_orden,))
-            for row in cursor.fetchall(): 
+            """,
+                (id_orden,),
+            )
+            for row in cursor.fetchall():
                 tabla_rep.insert("", "end", values=row)
 
             cursor.close()
             db.desconectar()
 
         ctk.CTkButton(ventana, text="Cerrar", command=ventana.destroy).pack(pady=20)
-   
-   
-   
+
         seleccion = self.tabla.selection()
         if not seleccion:
             messagebox.showwarning("Atención", "Selecciona una orden de la lista.")
             return
-        
+
         id_orden = self.tabla.item(seleccion[0])["values"][0]
 
         ventana = ctk.CTkToplevel(self)
@@ -291,7 +321,7 @@ class VistaMantenimiento(ctk.CTkFrame):
         conn = db.conectar()
         if conn:
             cursor = conn.cursor()
-            
+
             # --- CABECERA ---
             query_cabecera = """
                 SELECT v.placa, v.modelo, u.nombre, c.nombre AS nombre_cliente, o.fecha_ingreso
@@ -305,58 +335,80 @@ class VistaMantenimiento(ctk.CTkFrame):
             datos = cursor.fetchone()
 
             if datos:
-                ctk.CTkLabel(ventana, text="Detalles del Servicio", font=("Arial", 18, "bold")).pack(pady=10)
+                ctk.CTkLabel(
+                    ventana, text="Detalles del Servicio", font=("Arial", 18, "bold")
+                ).pack(pady=10)
                 info_text = f"Cliente: {datos[3]}  |  Vehículo: {datos[0]} ({datos[1]})\nAtendido por: {datos[2]}  |  Fecha: {datos[4]}"
-                ctk.CTkLabel(ventana, text=info_text, font=("Arial", 13)).pack(pady=5, padx=20)
+                ctk.CTkLabel(ventana, text=info_text, font=("Arial", 13)).pack(
+                    pady=5, padx=20
+                )
 
                 # --- TABLA SERVICIOS (CON COSTO) ---
-                ctk.CTkLabel(ventana, text="Servicios Realizados:", font=("Arial", 14, "bold")).pack(anchor="w", padx=25, pady=(15, 5))
-                tabla_serv = ttk.Treeview(ventana, columns=("Servicio", "Obs", "Costo"), show="headings", height=5)
+                ctk.CTkLabel(
+                    ventana, text="Servicios Realizados:", font=("Arial", 14, "bold")
+                ).pack(anchor="w", padx=25, pady=(15, 5))
+                tabla_serv = ttk.Treeview(
+                    ventana,
+                    columns=("Servicio", "Obs", "Costo"),
+                    show="headings",
+                    height=5,
+                )
                 tabla_serv.heading("Servicio", text="Servicio")
                 tabla_serv.heading("Obs", text="Observaciones")
                 tabla_serv.heading("Costo", text="Costo")
                 tabla_serv.column("Costo", width=80, anchor="center")
                 tabla_serv.pack(fill="x", padx=20)
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT s.nombre_servicio, d.observaciones_tecnicas, s.precio 
                     FROM detalle_servicios d 
                     JOIN servicios_catalogo s ON d.id_servicio_cat = s.id_servicio 
                     WHERE d.id_orden = %s
-                """, (id_orden,))
-                for row in cursor.fetchall(): 
+                """,
+                    (id_orden,),
+                )
+                for row in cursor.fetchall():
                     # Formateamos el precio aquí mismo
-                    tabla_serv.insert("", "end", values=(row[0], row[1], f"S/. {row[2]:.2f}"))
+                    tabla_serv.insert(
+                        "", "end", values=(row[0], row[1], f"S/. {row[2]:.2f}")
+                    )
 
                 # --- TABLA REPUESTOS ---
-                ctk.CTkLabel(ventana, text="Repuestos Utilizados:", font=("Arial", 14, "bold")).pack(anchor="w", padx=25, pady=(15, 5))
-                tabla_rep = ttk.Treeview(ventana, columns=("Rep", "Cant"), show="headings", height=5)
+                ctk.CTkLabel(
+                    ventana, text="Repuestos Utilizados:", font=("Arial", 14, "bold")
+                ).pack(anchor="w", padx=25, pady=(15, 5))
+                tabla_rep = ttk.Treeview(
+                    ventana, columns=("Rep", "Cant"), show="headings", height=5
+                )
                 tabla_rep.heading("Rep", text="Repuesto")
                 tabla_rep.heading("Cant", text="Cantidad")
                 tabla_rep.column("Cant", width=80, anchor="center")
                 tabla_rep.pack(fill="x", padx=20)
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT r.nombre_repuesto, d.cantidad_usada 
                     FROM detalle_repuestos d 
                     JOIN repuestos r ON d.id_repuesto = r.id_repuesto 
                     WHERE d.id_orden = %s
-                """, (id_orden,))
-                for row in cursor.fetchall(): 
+                """,
+                    (id_orden,),
+                )
+                for row in cursor.fetchall():
                     tabla_rep.insert("", "end", values=row)
 
             cursor.close()
             db.desconectar()
 
         ctk.CTkButton(ventana, text="Cerrar", command=ventana.destroy).pack(pady=20)
-    
-    
+
         # 1. Obtener la orden seleccionada (asegura que tu método existe)
         seleccion = self.tabla.selection()
         if not seleccion:
             messagebox.showwarning("Atención", "Selecciona una orden de la lista.")
             return
-        
+
         id_orden = self.tabla.item(seleccion[0])["values"][0]
 
         # 2. Configuración de la ventana
@@ -370,7 +422,7 @@ class VistaMantenimiento(ctk.CTkFrame):
         conn = db.conectar()
         if conn:
             cursor = conn.cursor()
-            
+
             # --- Consulta Cabecera ---
             query_cabecera = """
                 SELECT v.placa, v.modelo, u.nombre, c.nombre AS nombre_cliente, o.fecha_ingreso
@@ -386,50 +438,69 @@ class VistaMantenimiento(ctk.CTkFrame):
             if datos:
                 # Mostrar datos del cliente
                 info_text = f"Cliente: {datos[3]}  |  Vehículo: {datos[0]} ({datos[1]})\nAtendido por: {datos[2]}  |  Fecha: {datos[4]}"
-                ctk.CTkLabel(ventana, text="Detalles del Servicio", font=("Arial", 18, "bold")).pack(pady=10)
-                ctk.CTkLabel(ventana, text=info_text, font=("Arial", 13)).pack(pady=5, padx=20)
+                ctk.CTkLabel(
+                    ventana, text="Detalles del Servicio", font=("Arial", 18, "bold")
+                ).pack(pady=10)
+                ctk.CTkLabel(ventana, text=info_text, font=("Arial", 13)).pack(
+                    pady=5, padx=20
+                )
 
                 # --- TABLA SERVICIOS ---
-                ctk.CTkLabel(ventana, text="Servicios Realizados:", font=("Arial", 14, "bold")).pack(anchor="w", padx=25, pady=(15, 5))
-                tabla_serv = ttk.Treeview(ventana, columns=("Servicio", "Obs"), show="headings", height=5)
+                ctk.CTkLabel(
+                    ventana, text="Servicios Realizados:", font=("Arial", 14, "bold")
+                ).pack(anchor="w", padx=25, pady=(15, 5))
+                tabla_serv = ttk.Treeview(
+                    ventana, columns=("Servicio", "Obs"), show="headings", height=5
+                )
                 tabla_serv.heading("Servicio", text="Servicio")
                 tabla_serv.heading("Obs", text="Observaciones")
                 tabla_serv.column("Servicio", width=200)
                 tabla_serv.pack(fill="x", padx=20)
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT s.nombre_servicio, d.observaciones_tecnicas 
                     FROM detalle_servicios d 
                     JOIN servicios_catalogo s ON d.id_servicio_cat = s.id_servicio 
                     WHERE d.id_orden = %s
-                """, (id_orden,))
-                for row in cursor.fetchall(): tabla_serv.insert("", "end", values=row)
+                """,
+                    (id_orden,),
+                )
+                for row in cursor.fetchall():
+                    tabla_serv.insert("", "end", values=row)
 
                 # --- TABLA REPUESTOS ---
-                ctk.CTkLabel(ventana, text="Repuestos Utilizados:", font=("Arial", 14, "bold")).pack(anchor="w", padx=25, pady=(15, 5))
-                tabla_rep = ttk.Treeview(ventana, columns=("Rep", "Cant"), show="headings", height=5)
+                ctk.CTkLabel(
+                    ventana, text="Repuestos Utilizados:", font=("Arial", 14, "bold")
+                ).pack(anchor="w", padx=25, pady=(15, 5))
+                tabla_rep = ttk.Treeview(
+                    ventana, columns=("Rep", "Cant"), show="headings", height=5
+                )
                 tabla_rep.heading("Rep", text="Repuesto")
                 tabla_rep.heading("Cant", text="Cantidad")
                 tabla_rep.column("Cant", width=80, anchor="center")
                 tabla_rep.pack(fill="x", padx=20)
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT r.nombre_repuesto, d.cantidad_usada 
                     FROM detalle_repuestos d 
                     JOIN repuestos r ON d.id_repuesto = r.id_repuesto 
                     WHERE d.id_orden = %s
-                """, (id_orden,))
-                for row in cursor.fetchall(): tabla_rep.insert("", "end", values=row)
+                """,
+                    (id_orden,),
+                )
+                for row in cursor.fetchall():
+                    tabla_rep.insert("", "end", values=row)
 
             cursor.close()
             db.desconectar()
 
         ctk.CTkButton(ventana, text="Cerrar", command=ventana.destroy).pack(pady=20)
-    
-    
-    
+
         id_orden = self.obtener_orden_seleccionada()
-        if not id_orden: return
+        if not id_orden:
+            return
 
         ventana = ctk.CTkToplevel(self)
         ventana.title(f"Detalle Completo - Orden #{id_orden}")
@@ -453,61 +524,90 @@ class VistaMantenimiento(ctk.CTkFrame):
             datos = cursor.fetchone()
 
             if datos:
-                ctk.CTkLabel(ventana, text="Información de la Orden", font=("Arial", 16, "bold")).pack(pady=10)
+                ctk.CTkLabel(
+                    ventana, text="Información de la Orden", font=("Arial", 16, "bold")
+                ).pack(pady=10)
                 info_frame = ctk.CTkFrame(ventana)
                 info_frame.pack(fill="x", padx=20, pady=5)
-                
+
                 txt = f"Cliente: {datos[3]}  |  Vehículo: {datos[0]} ({datos[1]})\nAtendido por: {datos[2]}  |  Fecha: {datos[4]}"
-                ctk.CTkLabel(info_frame, text=txt, justify="left").pack(pady=10, padx=10)
+                ctk.CTkLabel(info_frame, text=txt, justify="left").pack(
+                    pady=10, padx=10
+                )
 
                 # --- TABLA SERVICIOS ---
-                ctk.CTkLabel(ventana, text="Servicios:", font=("Arial", 13, "bold")).pack(anchor="w", padx=25, pady=(10,0))
-                tabla_serv = ttk.Treeview(ventana, columns=("Servicio", "Obs"), show="headings", height=5)
+                ctk.CTkLabel(
+                    ventana, text="Servicios:", font=("Arial", 13, "bold")
+                ).pack(anchor="w", padx=25, pady=(10, 0))
+                tabla_serv = ttk.Treeview(
+                    ventana, columns=("Servicio", "Obs"), show="headings", height=5
+                )
                 tabla_serv.heading("Servicio", text="Servicio")
                 tabla_serv.heading("Obs", text="Observaciones")
                 tabla_serv.pack(fill="x", padx=20, pady=5)
 
-                cursor.execute("SELECT s.nombre_servicio, d.observaciones_tecnicas FROM detalle_servicios d JOIN servicios_catalogo s ON d.id_servicio = s.id_servicio WHERE d.id_orden = %s", (id_orden,))
-                for row in cursor.fetchall(): tabla_serv.insert("", "end", values=row)
+                cursor.execute(
+                    "SELECT s.nombre_servicio, d.observaciones_tecnicas FROM detalle_servicios d JOIN servicios_catalogo s ON d.id_servicio = s.id_servicio WHERE d.id_orden = %s",
+                    (id_orden,),
+                )
+                for row in cursor.fetchall():
+                    tabla_serv.insert("", "end", values=row)
 
                 # --- TABLA REPUESTOS ---
-                ctk.CTkLabel(ventana, text="Repuestos:", font=("Arial", 13, "bold")).pack(anchor="w", padx=25, pady=(10,0))
-                tabla_rep = ttk.Treeview(ventana, columns=("Rep", "Cant"), show="headings", height=5)
+                ctk.CTkLabel(
+                    ventana, text="Repuestos:", font=("Arial", 13, "bold")
+                ).pack(anchor="w", padx=25, pady=(10, 0))
+                tabla_rep = ttk.Treeview(
+                    ventana, columns=("Rep", "Cant"), show="headings", height=5
+                )
                 tabla_rep.heading("Rep", text="Repuesto")
                 tabla_rep.heading("Cant", text="Cantidad")
                 tabla_rep.column("Cant", width=80, anchor="center")
                 tabla_rep.pack(fill="x", padx=20, pady=5)
 
-                cursor.execute("SELECT r.nombre_repuesto, d.cantidad_usada FROM detalle_repuestos d JOIN repuestos r ON d.id_repuesto = r.id_repuesto WHERE d.id_orden = %s", (id_orden,))
-                for row in cursor.fetchall(): tabla_rep.insert("", "end", values=row)
+                cursor.execute(
+                    "SELECT r.nombre_repuesto, d.cantidad_usada FROM detalle_repuestos d JOIN repuestos r ON d.id_repuesto = r.id_repuesto WHERE d.id_orden = %s",
+                    (id_orden,),
+                )
+                for row in cursor.fetchall():
+                    tabla_rep.insert("", "end", values=row)
 
             cursor.close()
             db.desconectar()
 
         ctk.CTkButton(ventana, text="Cerrar", command=ventana.destroy).pack(pady=20)
-    
+
         id_orden = self.obtener_orden_seleccionada()
-        if not id_orden: return
+        if not id_orden:
+            return
 
         ventana = ctk.CTkToplevel(self)
         ventana.title(f"Detalle Completo - Orden #{id_orden}")
         ventana.geometry("700x550")
-        
+
         # --- Cabecera con datos del cliente ---
         # (Aquí ejecuta la consulta SQL nueva de arriba y guarda en 'datos')
         header_frame = ctk.CTkFrame(ventana)
         header_frame.pack(fill="x", padx=20, pady=10)
-        ctk.CTkLabel(header_frame, text=f"Cliente: {datos[3]} | Vehículo: {datos[0]} ({datos[1]})", font=("Arial", 14, "bold")).pack(pady=5)
+        ctk.CTkLabel(
+            header_frame,
+            text=f"Cliente: {datos[3]} | Vehículo: {datos[0]} ({datos[1]})",
+            font=("Arial", 14, "bold"),
+        ).pack(pady=5)
 
         # --- Cuadrícula de Servicios ---
         ctk.CTkLabel(ventana, text="Servicios Realizados:").pack(anchor="w", padx=20)
-        tabla_serv = ttk.Treeview(ventana, columns=("Servicio"), show="headings", height=5)
+        tabla_serv = ttk.Treeview(
+            ventana, columns=("Servicio"), show="headings", height=5
+        )
         tabla_serv.heading("Servicio", text="Servicio")
         tabla_serv.pack(fill="x", padx=20, pady=5)
 
         # --- Cuadrícula de Repuestos ---
         ctk.CTkLabel(ventana, text="Repuestos Utilizados:").pack(anchor="w", padx=20)
-        tabla_rep = ttk.Treeview(ventana, columns=("Repuesto", "Cant"), show="headings", height=5)
+        tabla_rep = ttk.Treeview(
+            ventana, columns=("Repuesto", "Cant"), show="headings", height=5
+        )
         tabla_rep.heading("Repuesto", text="Repuesto")
         tabla_rep.heading("Cant", text="Cantidad")
         tabla_rep.column("Cant", width=80, anchor="center")
@@ -515,9 +615,9 @@ class VistaMantenimiento(ctk.CTkFrame):
 
         # Carga los datos en tabla_serv y tabla_rep usando cursor.fetchall()
         # ... (Tu lógica de llenado de tablas aquí) ...
+
     def cargar_vehiculos_combobox(self):
-        db = ConexionBD()
-        conn = db.conectar()
+        db, conn = self.obtener_conexion_bd()
         if conn is None:
             return
 
@@ -548,14 +648,11 @@ class VistaMantenimiento(ctk.CTkFrame):
         except Exception as e:
             print(f"Error cargando combobox de vehículos: {e}")
         finally:
-            db.desconectar()
+            self.cerrar_conexion_bd(db)
 
     def cargar_ordenes(self):
-        for i in self.tabla.get_children():
-            self.tabla.delete(i)
-
-        db = ConexionBD()
-        conn = db.conectar()
+        self.limpiar_tabla(self.tabla)
+        db, conn = self.obtener_conexion_bd()
         if conn is None:
             return
 
@@ -579,7 +676,7 @@ class VistaMantenimiento(ctk.CTkFrame):
         except Exception as e:
             print(f"Error cargando órdenes: {e}")
         finally:
-            db.desconectar()
+            self.cerrar_conexion_bd(db)
 
     def guardar_orden(self):
         vehiculo_seleccionado = self.cmb_vehiculo.get()
@@ -597,14 +694,21 @@ class VistaMantenimiento(ctk.CTkFrame):
 
         id_vehiculo = self.vehiculos_map.get(vehiculo_seleccionado)
 
-        if not diagnostico:
-            messagebox.showwarning(
-                "Campos Incompletos", "Por favor, ingresa el diagnóstico inicial."
-            )
+        # Usamos el modelo OrdenTrabajo para validación
+        orden = OrdenTrabajo(
+            id_vehiculo=id_vehiculo,
+            id_usuario=1,
+            diagnostico_inicial=diagnostico,
+            total_pagar=0.00,
+            estado=estado,
+        )
+        valido, mensaje = orden.validar()
+
+        if not valido:
+            messagebox.showwarning("Campos Incompletos", mensaje)
             return
 
-        db = ConexionBD()
-        conn = db.conectar()
+        db, conn = self.obtener_conexion_bd()
         if conn is None:
             messagebox.showerror("Error", "Error al conectar con la base de datos.")
             return
@@ -629,7 +733,7 @@ class VistaMantenimiento(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo crear la orden:\n{e}")
         finally:
-            db.desconectar()
+            self.cerrar_conexion_bd(db)
 
     # ---- OBTENER SELECCIÓN ACTIVA DE LA TABLA ----
     def obtener_orden_seleccionada(self):

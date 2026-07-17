@@ -2,13 +2,13 @@
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 from database import ConexionBD
-from vistas.vistasClientes import aplicar_estilo_tabla
+from vistas.base_vista import VistaBase
+from modelos import Vehiculo
 
 
-class VistaVehiculos(ctk.CTkFrame):
+class VistaVehiculos(VistaBase):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
-        aplicar_estilo_tabla()
 
         self.titulo = ctk.CTkLabel(
             self, text="Registro de Vehículos", font=ctk.CTkFont(size=22, weight="bold")
@@ -117,8 +117,7 @@ class VistaVehiculos(ctk.CTkFrame):
 
     def cargar_clientes_combobox(self):
         """Busca los clientes en Render y los carga en el CTkOptionMenu"""
-        db = ConexionBD()
-        conn = db.conectar()
+        db, conn = self.obtener_conexion_bd()
         if conn is None:
             return
 
@@ -150,15 +149,12 @@ class VistaVehiculos(ctk.CTkFrame):
         except Exception as e:
             print(f"Error cargando combo de clientes: {e}")
         finally:
-            db.desconectar()
+            self.cerrar_conexion_bd(db)
 
     def cargar_vehiculos(self):
         """Carga la lista de vehículos cruzando el nombre del dueño desde 'clientes'"""
-        for i in self.tabla.get_children():
-            self.tabla.delete(i)
-
-        db = ConexionBD()
-        conn = db.conectar()
+        self.limpiar_tabla(self.tabla)
+        db, conn = self.obtener_conexion_bd()
         if conn is None:
             return
 
@@ -178,7 +174,7 @@ class VistaVehiculos(ctk.CTkFrame):
         except Exception as e:
             print(f"Error cargando vehículos: {e}")
         finally:
-            db.desconectar()
+            self.cerrar_conexion_bd(db)
 
     def guardar_vehiculo(self):
         cliente_seleccionado = self.cmb_cliente.get()
@@ -200,17 +196,25 @@ class VistaVehiculos(ctk.CTkFrame):
 
         id_cliente = self.clientes_map.get(cliente_seleccionado)
 
-        if not placa or not marca or not modelo or not anio:
-            messagebox.showwarning(
-                "Campos Incompletos", "Por favor, llena los campos del vehículo."
-            )
-            return
-
         # Si el kilometraje está vacío, lo dejamos en 0 por defecto
         kilometraje = int(km_texto) if km_texto.isdigit() else 0
 
-        db = ConexionBD()
-        conn = db.conectar()
+        # Usamos el modelo Vehiculo para validación
+        vehiculo = Vehiculo(
+            id_cliente=id_cliente,
+            placa=placa,
+            marca=marca,
+            modelo=modelo,
+            anio=int(anio) if anio.isdigit() else None,
+            kilometraje=kilometraje,
+        )
+        valido, mensaje = vehiculo.validar()
+
+        if not valido:
+            messagebox.showwarning("Campos Incompletos", mensaje)
+            return
+
+        db, conn = self.obtener_conexion_bd()
         if conn is None:
             messagebox.showerror("Error", "Error al conectar con Supabase.")
             return
@@ -236,7 +240,7 @@ class VistaVehiculos(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Error", f"Fallo al guardar vehículo:\n{e}")
         finally:
-            db.desconectar()
+            self.cerrar_conexion_bd(db)
 
     def limpiar_formulario(self):
         self.txt_placa.delete(0, "end")
